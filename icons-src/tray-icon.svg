@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 44 44">
+  <!-- Monochrome lightning bolt for macOS menu bar template image -->
+  <!-- Black on transparent; macOS auto-adapts to light/dark mode -->
+  <path d="M 25.5 3 L 13 23 L 20.5 23 L 18 41 L 31 20 L 23.5 20 Z" fill="#000000"/>
+</svg>

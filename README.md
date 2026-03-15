@@ -4,6 +4,12 @@ A macOS menubar app that automatically uploads Heroes of the Storm `.StormReplay
 
 Built with [Tauri](https://v2.tauri.app/), [SvelteKit](https://svelte.dev/), and Rust.
 
+## Downloads
+
+- [macOS (Apple Silicon)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_darwin-aarch64.dmg)
+- [macOS (Intel)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_darwin-x64.dmg)
+- [Windows (installer)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_windows-x64-setup.exe)
+
 ## Development
 
 ### Prerequisites

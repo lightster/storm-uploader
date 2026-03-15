@@ -173,11 +173,14 @@ pub fn run() {
             // Start file watcher
             watcher::start_watcher(app.handle());
 
-            // Auto-check for updates after a short delay
+            // Periodically check for updates
             let handle = app.handle().clone();
             tauri::async_runtime::spawn(async move {
                 tokio::time::sleep(std::time::Duration::from_secs(10)).await;
-                check_for_updates(handle).await;
+                loop {
+                    check_for_updates(handle.clone()).await;
+                    tokio::time::sleep(std::time::Duration::from_secs(6 * 60 * 60)).await;
+                }
             });
 
             Ok(())

@@ -48,9 +48,14 @@ jobs:
           sed -i "s/\"version\": \"$CURRENT\"/\"version\": \"$NEW\"/" src-tauri/tauri.conf.json
           sed -i "s/^version = \"$CURRENT\"/version = \"$NEW\"/" src-tauri/Cargo.toml
 
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Update Cargo.lock
+        run: (cd src-tauri && cargo update --workspace)
+
       - name: Commit and tag
         run: |
-          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml
+          git add package.json package-lock.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
           git commit -m "Bump version to $NEW_VERSION"
           git tag "v$NEW_VERSION"
           git push origin main --tags

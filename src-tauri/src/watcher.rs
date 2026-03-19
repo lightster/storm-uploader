@@ -226,7 +226,11 @@ async fn startup_scan(app: AppHandle, tx: mpsc::UnboundedSender<PathBuf>, watch_
 
     let mut replay_files = Vec::new();
     collect_replay_files(watch_dir, &mut replay_files);
-    replay_files.sort();
+    replay_files.sort_by(|a, b| {
+        let time_a = std::fs::metadata(a).and_then(|m| m.modified()).ok();
+        let time_b = std::fs::metadata(b).and_then(|m| m.modified()).ok();
+        time_b.cmp(&time_a)
+    });
 
     log::info!("Startup scan found {} replay files", replay_files.len());
 

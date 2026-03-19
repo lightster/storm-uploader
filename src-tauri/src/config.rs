@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 use tauri_plugin_store::StoreExt;
 
 use crate::state::UploadEntry;
@@ -73,5 +74,22 @@ pub fn save_history(app: &tauri::AppHandle, entries: &[UploadEntry]) {
 
     let val = serde_json::to_value(entries).expect("failed to serialize history");
     store.set("history", val);
+    let _ = store.save();
+}
+
+pub fn load_known_hashes(app: &tauri::AppHandle) -> HashSet<String> {
+    let store = app.store(STORE_FILE).expect("failed to open store");
+
+    match store.get("knownHashes") {
+        Some(val) => serde_json::from_value(val).unwrap_or_default(),
+        None => HashSet::new(),
+    }
+}
+
+pub fn save_known_hashes(app: &tauri::AppHandle, hashes: &HashSet<String>) {
+    let store = app.store(STORE_FILE).expect("failed to open store");
+
+    let val = serde_json::to_value(hashes).expect("failed to serialize known hashes");
+    store.set("knownHashes", val);
     let _ = store.save();
 }

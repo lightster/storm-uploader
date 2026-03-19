@@ -7,7 +7,7 @@ use tokio::sync::mpsc;
 use tokio::time::sleep;
 use uuid::Uuid;
 
-use crate::config::{load_config, save_history};
+use crate::config::{load_config, save_history, save_known_hashes};
 use crate::state::{SharedState, UploadEntry, UploadSemaphore, UploadStatus};
 use crate::uploader;
 
@@ -303,6 +303,7 @@ pub fn rescan(app: &AppHandle) {
         let state = app.state::<SharedState>();
         let mut state = state.lock().unwrap();
         state.uploads.clear();
+        state.known_hashes.clear();
     }
     persist_and_emit(app);
 
@@ -320,12 +321,16 @@ pub fn rescan(app: &AppHandle) {
 }
 
 pub fn persist_and_emit(app: &AppHandle) {
-    let entries: Vec<UploadEntry> = {
+    let (entries, known_hashes) = {
         let state = app.state::<SharedState>();
         let state = state.lock().unwrap();
-        state.uploads.iter().cloned().collect()
+        (
+            state.uploads.iter().cloned().collect::<Vec<UploadEntry>>(),
+            state.known_hashes.clone(),
+        )
     };
 
     save_history(app, &entries);
+    save_known_hashes(app, &known_hashes);
     let _ = app.emit("upload-changed", &entries);
 }

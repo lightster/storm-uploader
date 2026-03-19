@@ -1,9 +1,10 @@
+mod autostart;
 mod config;
 mod state;
 mod uploader;
 mod watcher;
 
-use config::{load_config, load_history, save_config, AppConfig};
+use config::{load_config, load_history, load_known_hashes, save_known_hashes, save_config, AppConfig};
 use state::{AppState, SharedState, UploadEntry, UploadSemaphore};
 use std::collections::VecDeque;
 use std::sync::Mutex;
@@ -118,10 +119,21 @@ pub fn run() {
                 app.set_activation_policy(tauri::ActivationPolicy::Accessory);
             }
 
-            // Load persisted history
+            // Load persisted history and known hashes
             let history = load_history(app.handle());
+            let mut known_hashes = load_known_hashes(app.handle());
+
+            // Seed known_hashes from history entries (migration for first launch after update)
+            for entry in &history {
+                if let Some(sha256) = &entry.sha256 {
+                    known_hashes.insert(sha256.clone());
+                }
+            }
+            save_known_hashes(app.handle(), &known_hashes);
+
             let mut app_state = AppState::default();
             app_state.uploads = VecDeque::from(history);
+            app_state.known_hashes = known_hashes;
 
             app.manage(Mutex::new(app_state));
             app.manage(UploadSemaphore::new(5));
@@ -198,6 +210,9 @@ pub fn run() {
             get_uploads,
             get_config,
             save_config_cmd,
+            autostart::enable_autostart,
+            autostart::disable_autostart,
+            autostart::is_autostart_enabled,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

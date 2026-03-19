@@ -1,25 +1,35 @@
 <script>
 	import { invoke } from '@tauri-apps/api/core';
-	import { enable, disable, isEnabled } from '@tauri-apps/plugin-autostart';
+	import { onMount } from 'svelte';
 
 	let { config, onSave } = $props();
 
 	let watchDir = $state(config.watchDir);
 	let apiUrl = $state(config.apiUrl);
 	let autostart = $state(config.autostart);
+	let autostartLoaded = $state(false);
+	let autostartError = $state('');
 	let saved = $state(false);
 
-	$effect(() => {
-		isEnabled().then((enabled) => {
-			autostart = enabled;
-		});
+	onMount(async () => {
+		try {
+			autostart = await invoke('is_autostart_enabled');
+		} catch (e) {
+			autostartError = `Failed to check autostart: ${e}`;
+		}
+		autostartLoaded = true;
 	});
 
 	async function handleSave() {
-		if (autostart) {
-			await enable();
-		} else {
-			await disable();
+		autostartError = '';
+		try {
+			if (autostart) {
+				await invoke('enable_autostart');
+			} else {
+				await invoke('disable_autostart');
+			}
+		} catch (e) {
+			autostartError = `Failed to update autostart: ${e}`;
 		}
 
 		const newConfig = { watchDir, apiUrl, autostart };
@@ -57,17 +67,23 @@
 			/>
 		</div>
 
-		<div class="flex items-center justify-between">
-			<label for="autostart" class="text-sm text-zinc-300">Launch at login</label>
-			<button
-				id="autostart"
-				role="switch"
-				aria-checked={autostart}
-				onclick={() => { autostart = !autostart; }}
-				class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {autostart ? 'bg-blue-500' : 'bg-zinc-600'}"
-			>
-				<span class="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform {autostart ? 'translate-x-4' : 'translate-x-0.5'}" />
-			</button>
+		<div>
+			<div class="flex items-center justify-between">
+				<label for="autostart" class="text-sm text-zinc-300">Launch at login</label>
+				<button
+					id="autostart"
+					role="switch"
+					aria-checked={autostart}
+					disabled={!autostartLoaded}
+					onclick={() => { autostart = !autostart; }}
+					class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors {autostart ? 'bg-blue-500' : 'bg-zinc-600'} {!autostartLoaded ? 'opacity-50 cursor-not-allowed' : ''}"
+				>
+					<span class="inline-block h-3.5 w-3.5 rounded-full bg-white transition-transform {autostart ? 'translate-x-4' : 'translate-x-0.5'}" />
+				</button>
+			</div>
+			{#if autostartError}
+				<p class="text-xs text-red-400 mt-1">{autostartError}</p>
+			{/if}
 		</div>
 
 		<button

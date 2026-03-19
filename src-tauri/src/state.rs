@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use std::collections::VecDeque;
+use std::collections::{HashSet, VecDeque};
 use std::sync::Mutex;
 use tokio::sync::Semaphore;
 
@@ -32,11 +32,15 @@ pub struct UploadEntry {
 #[derive(Debug, Default)]
 pub struct AppState {
     pub uploads: VecDeque<UploadEntry>,
+    pub known_hashes: HashSet<String>,
     pub watcher_running: bool,
 }
 
 impl AppState {
     pub fn add_entry(&mut self, entry: UploadEntry) {
+        if let Some(sha256) = &entry.sha256 {
+            self.known_hashes.insert(sha256.clone());
+        }
         self.uploads.push_front(entry);
         while self.uploads.len() > MAX_ENTRIES {
             self.uploads.pop_back();
@@ -56,17 +60,7 @@ impl AppState {
     }
 
     pub fn has_sha256(&self, sha256: &str) -> bool {
-        self.uploads.iter().any(|e| {
-            e.sha256.as_deref() == Some(sha256)
-                && matches!(
-                    e.status,
-                    UploadStatus::Queued
-                        | UploadStatus::Duplicate
-                        | UploadStatus::Uploading
-                        | UploadStatus::Error
-                        | UploadStatus::Pending
-                )
-        })
+        self.known_hashes.contains(sha256)
     }
 
     pub fn get_retryable(&self) -> Vec<UploadEntry> {

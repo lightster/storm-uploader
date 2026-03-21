@@ -8,7 +8,7 @@
 			case 'uploading':
 				return { label: 'Uploading', bg: 'bg-blue-900/50', text: 'text-blue-400' };
 			case 'queued':
-				return { label: 'Queued', bg: 'bg-green-900/50', text: 'text-green-400' };
+				return { label: 'Uploaded', bg: 'bg-green-900/50', text: 'text-green-400' };
 			case 'duplicate':
 				return { label: 'Duplicate', bg: 'bg-zinc-700', text: 'text-zinc-400' };
 			case 'error':

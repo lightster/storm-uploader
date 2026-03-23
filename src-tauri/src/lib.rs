@@ -220,7 +220,7 @@ fn is_game_running() -> bool {
     #[cfg(target_os = "macos")]
     {
         std::process::Command::new("pgrep")
-            .args(["-f", "Heroes of the Storm"])
+            .args(["-f", "Heroes.app/Contents/MacOS/Heroes"])
             .output()
             .map(|o| o.status.success())
             .unwrap_or(false)

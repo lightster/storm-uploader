@@ -15,6 +15,8 @@ use tauri::{
     tray::TrayIconBuilder,
     Emitter, Listener, Manager, WebviewUrl, WebviewWindowBuilder,
 };
+#[cfg(target_os = "macos")]
+use tauri::menu::SubmenuBuilder;
 use tauri_plugin_deep_link::DeepLinkExt;
 use tauri_plugin_positioner::{Position, WindowExt};
 use tauri_plugin_updater::UpdaterExt;
@@ -54,6 +56,10 @@ fn save_config_cmd(app: tauri::AppHandle, config: AppConfig) {
 const WINDOW_LABEL: &str = "main";
 const WINDOW_WIDTH: f64 = 360.0;
 const WINDOW_HEIGHT: f64 = 480.0;
+
+const SETTINGS_LABEL: &str = "settings";
+const SETTINGS_WIDTH: f64 = 400.0;
+const SETTINGS_HEIGHT: f64 = 400.0;
 
 const WEBSITE_LABEL: &str = "website";
 const WEBSITE_URL: &str = match option_env!("STORM_WEBSITE_URL") {
@@ -159,6 +165,46 @@ fn open_website_window(app: &tauri::AppHandle, path: Option<&str>) {
             if let tauri::WindowEvent::CloseRequested { .. } = event {
                 #[cfg(target_os = "macos")]
                 let _ = app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+            }
+        });
+    }
+}
+
+fn open_settings_window(app: &tauri::AppHandle) {
+    if let Some(window) = app.get_webview_window(SETTINGS_LABEL) {
+        let _ = window.set_focus();
+        return;
+    }
+
+    #[cfg(target_os = "macos")]
+    let _ = app.set_activation_policy(tauri::ActivationPolicy::Regular);
+
+    let window = WebviewWindowBuilder::new(
+        app,
+        SETTINGS_LABEL,
+        WebviewUrl::App("/settings".into()),
+    )
+    .title("Settings")
+    .inner_size(SETTINGS_WIDTH, SETTINGS_HEIGHT)
+    .resizable(false)
+    .decorations(true)
+    .skip_taskbar(false)
+    .visible(true)
+    .build();
+
+    if let Ok(win) = window {
+        let _ = win.set_focus();
+        let app_handle = app.clone();
+        win.on_window_event(move |event| {
+            if let tauri::WindowEvent::CloseRequested { .. } = event {
+                #[cfg(target_os = "macos")]
+                {
+                    // Only revert to Accessory if the website window isn't open
+                    if app_handle.get_webview_window(WEBSITE_LABEL).is_none() {
+                        let _ =
+                            app_handle.set_activation_policy(tauri::ActivationPolicy::Accessory);
+                    }
+                }
             }
         });
     }
@@ -327,11 +373,13 @@ pub fn run() {
 
             // Build tray icon
             let open_website = MenuItemBuilder::with_id("open_website", "Open Website").build(app)?;
+            let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
             let check_update = MenuItemBuilder::with_id("check_update", "Check for Updates").build(app)?;
             let rescan = MenuItemBuilder::with_id("rescan", "Re-upload All Replays").build(app)?;
             let quit = MenuItemBuilder::with_id("quit", "Quit Storm Uploader").build(app)?;
             let menu = MenuBuilder::new(app)
                 .item(&open_website)
+                .item(&settings)
                 .separator()
                 .item(&check_update)
                 .item(&rescan)
@@ -366,6 +414,8 @@ pub fn run() {
                         tauri::async_runtime::spawn(async move {
                             check_for_updates(handle).await;
                         });
+                    } else if event.id() == "settings" {
+                        open_settings_window(app);
                     } else if event.id() == "rescan" {
                         watcher::rescan(app);
                     }
@@ -382,6 +432,34 @@ pub fn run() {
                     }
                 })
                 .build(app)?;
+
+            // macOS app menu with Settings shortcut (Cmd+,)
+            #[cfg(target_os = "macos")]
+            {
+                let app_submenu = SubmenuBuilder::new(app, "Storm Uploader")
+                    .about(None)
+                    .separator()
+                    .item(
+                        &MenuItemBuilder::with_id("app_settings", "Settings")
+                            .accelerator("CmdOrCtrl+,")
+                            .build(app)?,
+                    )
+                    .separator()
+                    .hide()
+                    .hide_others()
+                    .show_all()
+                    .separator()
+                    .quit()
+                    .build()?;
+                let app_menu = MenuBuilder::new(app).item(&app_submenu).build()?;
+                app.set_menu(app_menu)?;
+
+                app.on_menu_event(move |app, event| {
+                    if event.id() == "app_settings" {
+                        open_settings_window(app);
+                    }
+                });
+            }
 
             // Start file watcher
             watcher::start_watcher(app.handle());

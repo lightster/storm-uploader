@@ -5,7 +5,7 @@ use std::sync::Mutex;
 use tauri::ipc::Channel;
 use tokio::sync::Semaphore;
 
-const MAX_ENTRIES: usize = 100;
+const MAX_COMPLETED: usize = 100;
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -15,6 +15,12 @@ pub enum UploadStatus {
     Queued,
     Duplicate,
     Error,
+}
+
+impl UploadStatus {
+    pub fn is_completed(&self) -> bool {
+        matches!(self, UploadStatus::Queued | UploadStatus::Duplicate)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -43,9 +49,18 @@ impl AppState {
             self.known_hashes.insert(sha256.clone());
         }
         self.uploads.push_front(entry);
-        while self.uploads.len() > MAX_ENTRIES {
-            self.uploads.pop_back();
-        }
+    }
+
+    pub fn prune_completed(&mut self) {
+        let mut completed_count = 0;
+        self.uploads.retain(|e| {
+            if e.status.is_completed() {
+                completed_count += 1;
+                completed_count <= MAX_COMPLETED
+            } else {
+                true
+            }
+        });
     }
 
     pub fn update_entry<F>(&mut self, id: &str, update: F) -> Option<UploadEntry>

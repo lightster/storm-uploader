@@ -225,7 +225,7 @@ async fn upload_consumer(app: AppHandle, mut rx: mpsc::UnboundedReceiver<PathBuf
     }
 }
 
-async fn startup_scan(app: AppHandle, tx: mpsc::UnboundedSender<PathBuf>, watch_dir: &Path) {
+async fn startup_scan(app: AppHandle, _tx: mpsc::UnboundedSender<PathBuf>, watch_dir: &Path) {
     sleep(Duration::from_secs(2)).await;
 
     let mut replay_files = Vec::new();
@@ -238,8 +238,10 @@ async fn startup_scan(app: AppHandle, tx: mpsc::UnboundedSender<PathBuf>, watch_
 
     log::info!("Startup scan found {} replay files", replay_files.len());
 
-    for path in replay_files {
-        let sha256 = match compute_sha256(&path).await {
+    // First pass: hash all files and add pending entries to state
+    let mut pending_ids = Vec::new();
+    for path in &replay_files {
+        let sha256 = match compute_sha256(path).await {
             Ok(hash) => hash,
             Err(_) => continue,
         };
@@ -250,10 +252,51 @@ async fn startup_scan(app: AppHandle, tx: mpsc::UnboundedSender<PathBuf>, watch_
             state.has_sha256(&sha256)
         };
 
-        if !already_known {
-            let _ = tx.send(path);
-            sleep(Duration::from_secs(1)).await;
+        if already_known {
+            continue;
         }
+
+        let file_name = path
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
+
+        let entry = UploadEntry {
+            id: Uuid::new_v4().to_string(),
+            file_name,
+            file_path: path.to_string_lossy().to_string(),
+            status: UploadStatus::Pending,
+            sha256: Some(sha256),
+            error: None,
+            created_at: chrono::Utc::now(),
+            retry_count: 0,
+        };
+
+        let id = entry.id.clone();
+        {
+            let state = app.state::<SharedState>();
+            let mut state = state.lock().unwrap();
+            state.add_entry(entry);
+        }
+        pending_ids.push(id);
+    }
+
+    if !pending_ids.is_empty() {
+        persist_and_emit(&app);
+    }
+
+    // Second pass: spawn uploads concurrently (semaphore limits to 5 at a time)
+    let mut handles = Vec::new();
+    for id in pending_ids {
+        let app = app.clone();
+        handles.push(tauri::async_runtime::spawn(async move {
+            do_upload(&app, &id).await;
+        }));
+        sleep(Duration::from_millis(100)).await;
+    }
+    for handle in handles {
+        let _ = handle.await;
     }
 }
 
@@ -331,7 +374,8 @@ pub fn rescan(app: &AppHandle) {
 pub fn persist_and_emit(app: &AppHandle) {
     let (entries, known_hashes) = {
         let state = app.state::<SharedState>();
-        let state = state.lock().unwrap();
+        let mut state = state.lock().unwrap();
+        state.prune_completed();
         (
             state.uploads.iter().cloned().collect::<Vec<UploadEntry>>(),
             state.known_hashes.clone(),

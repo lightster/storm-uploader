@@ -445,7 +445,13 @@ pub fn run() {
                     .separator()
                     .quit()
                     .build()?;
-                let app_menu = MenuBuilder::new(app).item(&app_submenu).build()?;
+                let file_submenu = SubmenuBuilder::new(app, "File")
+                    .close_window()
+                    .build()?;
+                let app_menu = MenuBuilder::new(app)
+                    .item(&app_submenu)
+                    .item(&file_submenu)
+                    .build()?;
                 app.set_menu(app_menu)?;
 
                 app.on_menu_event(move |app, event| {

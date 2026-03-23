@@ -319,6 +319,16 @@ fn reveal_path(path: String) {
 }
 
 #[tauri::command]
+async fn clear_webview_data(app: tauri::AppHandle) -> Result<(), String> {
+    if let Some(window) = app.get_webview_window(WEBSITE_LABEL) {
+        window
+            .clear_all_browsing_data()
+            .map_err(|e| format!("Failed to clear browsing data: {}", e))?;
+    }
+    Ok(())
+}
+
+#[tauri::command]
 fn load_overlay() -> Result<(), String> {
     log::info!("load_overlay stub called");
     Ok(())
@@ -563,6 +573,7 @@ pub fn run() {
             is_game_running_cmd,
             load_overlay,
             reveal_path,
+            clear_webview_data,
         ])
         .build(tauri::generate_context!())
         .expect("error while building tauri application")

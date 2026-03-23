@@ -5,7 +5,7 @@ mod uploader;
 mod watcher;
 
 use config::{load_config, load_history, load_known_hashes, save_known_hashes, save_config, AppConfig};
-use state::{AppState, SharedState, UploadEntry, UploadSemaphore};
+use state::{AppState, SharedState, UploadChannels, UploadEntry, UploadSemaphore};
 use std::collections::VecDeque;
 use std::path::PathBuf;
 use std::sync::Mutex;
@@ -23,6 +23,22 @@ use tauri_plugin_updater::UpdaterExt;
 fn get_uploads(state: tauri::State<'_, SharedState>) -> Vec<UploadEntry> {
     let state = state.lock().unwrap();
     state.uploads.iter().cloned().collect()
+}
+
+#[tauri::command]
+fn watch_uploads(
+    state: tauri::State<'_, SharedState>,
+    channels: tauri::State<'_, UploadChannels>,
+    on_event: tauri::ipc::Channel<Vec<UploadEntry>>,
+) {
+    let entries: Vec<UploadEntry> = {
+        let state = state.lock().unwrap();
+        state.uploads.iter().cloned().collect()
+    };
+    let _ = on_event.send(entries);
+
+    let mut chans = channels.lock().unwrap();
+    chans.push(on_event);
 }
 
 #[tauri::command]
@@ -307,6 +323,7 @@ pub fn run() {
 
             app.manage(Mutex::new(app_state));
             app.manage(UploadSemaphore::new(5));
+            app.manage(UploadChannels::default());
 
             // Build tray icon
             let open_website = MenuItemBuilder::with_id("open_website", "Open Website").build(app)?;
@@ -400,6 +417,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             get_uploads,
+            watch_uploads,
             get_config,
             save_config_cmd,
             autostart::enable_autostart,

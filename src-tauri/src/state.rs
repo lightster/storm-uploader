@@ -2,6 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use std::collections::{HashSet, VecDeque};
 use std::sync::Mutex;
+use tauri::ipc::Channel;
 use tokio::sync::Semaphore;
 
 const MAX_ENTRIES: usize = 100;
@@ -74,3 +75,4 @@ impl AppState {
 
 pub type SharedState = Mutex<AppState>;
 pub type UploadSemaphore = Semaphore;
+pub type UploadChannels = Mutex<Vec<Channel<Vec<UploadEntry>>>>;

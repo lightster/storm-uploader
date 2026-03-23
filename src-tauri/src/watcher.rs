@@ -8,7 +8,7 @@ use tokio::time::sleep;
 use uuid::Uuid;
 
 use crate::config::{load_config, save_history, save_known_hashes};
-use crate::state::{SharedState, UploadEntry, UploadSemaphore, UploadStatus};
+use crate::state::{SharedState, UploadChannels, UploadEntry, UploadSemaphore, UploadStatus};
 use crate::uploader;
 
 pub fn start_watcher(app: &AppHandle) {
@@ -337,4 +337,8 @@ pub fn persist_and_emit(app: &AppHandle) {
     save_history(app, &entries);
     save_known_hashes(app, &known_hashes);
     let _ = app.emit("upload-changed", &entries);
+
+    let channels = app.state::<UploadChannels>();
+    let mut chans = channels.lock().unwrap();
+    chans.retain(|ch| ch.send(entries.clone()).is_ok());
 }

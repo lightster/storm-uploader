@@ -137,7 +137,7 @@ fn open_website_window(app: &tauri::AppHandle, path: Option<&str>) {
 
     let url = WebviewUrl::External(full_url.parse().unwrap());
     let window = WebviewWindowBuilder::new(app, WEBSITE_LABEL, url)
-        .title("Storm Uploader — Website")
+        .title("Storm Almanac — Website")
         .inner_size(WEBSITE_WIDTH, WEBSITE_HEIGHT)
         .resizable(true)
         .decorations(true)
@@ -388,7 +388,7 @@ pub fn run() {
             let settings = MenuItemBuilder::with_id("settings", "Settings").build(app)?;
             let check_update = MenuItemBuilder::with_id("check_update", "Check for Updates").build(app)?;
             let rescan = MenuItemBuilder::with_id("rescan", "Re-upload All Replays").build(app)?;
-            let quit = MenuItemBuilder::with_id("quit", "Quit Storm Uploader").build(app)?;
+            let quit = MenuItemBuilder::with_id("quit", "Quit Storm Almanac").build(app)?;
             let menu = MenuBuilder::new(app)
                 .item(&open_website)
                 .item(&settings)
@@ -419,7 +419,7 @@ pub fn run() {
                 .icon_as_template(is_template)
                 .menu(&menu)
                 .show_menu_on_left_click(false)
-                .tooltip("Storm Uploader")
+                .tooltip("Storm Almanac")
                 .on_menu_event(move |app, event| {
                     if event.id() == "quit" {
                         app.exit(0);
@@ -460,7 +460,7 @@ pub fn run() {
             // macOS app menu with Settings shortcut (Cmd+,)
             #[cfg(target_os = "macos")]
             {
-                let app_submenu = SubmenuBuilder::new(app, "Storm Uploader")
+                let app_submenu = SubmenuBuilder::new(app, "Storm Almanac")
                     .about(None)
                     .separator()
                     .item(

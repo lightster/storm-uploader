@@ -1,12 +1,12 @@
 [package]
-name = "uploader"
+name = "storm-almanac"
 version = "0.1.17"
-description = "Storm Replay Uploader"
+description = "Storm Almanac"
 authors = ["lightster"]
 edition = "2021"
 
 [lib]
-name = "uploader_lib"
+name = "storm_almanac_lib"
 crate-type = ["staticlib", "cdylib", "rlib"]
 
 [build-dependencies]

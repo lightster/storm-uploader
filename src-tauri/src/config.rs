@@ -4,7 +4,7 @@ use tauri_plugin_store::StoreExt;
 
 use crate::state::UploadEntry;
 
-const STORE_FILE: &str = "storm-uploader.json";
+const STORE_FILE: &str = "storm-almanac.json";
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]

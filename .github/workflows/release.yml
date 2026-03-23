@@ -54,8 +54,8 @@ jobs:
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
         with:
           tagName: ${{ inputs.tag || github.ref_name }}
-          releaseName: 'Storm Uploader ${{ inputs.tag || github.ref_name }}'
-          releaseAssetNamePattern: 'Storm-Uploader_[platform]-[arch][setup][ext]'
+          releaseName: 'Storm Almanac ${{ inputs.tag || github.ref_name }}'
+          releaseAssetNamePattern: 'Storm-Almanac_[platform]-[arch][setup][ext]'
           releaseDraft: false
           prerelease: false
           args: ${{ matrix.args }}

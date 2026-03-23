@@ -1,8 +1,8 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Storm Uploader",
+  "productName": "Storm Almanac",
   "version": "0.1.17",
-  "identifier": "com.lightster.storm-uploader",
+  "identifier": "com.lightster.storm-almanac",
   "build": {
     "beforeDevCommand": "npm run dev",
     "devUrl": "http://localhost:1420",

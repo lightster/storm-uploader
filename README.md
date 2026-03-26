@@ -1,4 +1,4 @@
-# Storm Uploader
+# Storm Almanac
 
 A macOS menubar app that automatically uploads Heroes of the Storm `.StormReplay` files.
 
@@ -6,9 +6,9 @@ Built with [Tauri](https://v2.tauri.app/), [SvelteKit](https://svelte.dev/), and
 
 ## Downloads
 
-- [macOS (Apple Silicon)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_darwin-aarch64.dmg)
-- [macOS (Intel)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_darwin-x64.dmg)
-- [Windows (installer)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Uploader_windows-x64-setup.exe)
+- [macOS (Apple Silicon)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Almanac_darwin-aarch64.dmg)
+- [macOS (Intel)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Almanac_darwin-x64.dmg)
+- [Windows (installer)](https://github.com/lightster/storm-uploader/releases/latest/download/Storm-Almanac_windows-x64-setup.exe)
 
 > This app is not code-signed. I built it for my own use and it's not
 > currently worth the cost of a signing certificate, but I want to make
@@ -18,7 +18,7 @@ Built with [Tauri](https://v2.tauri.app/), [SvelteKit](https://svelte.dev/), and
 **macOS:** After installing the app to your Applications folder, remove the quarantine flag before opening:
 
 ```bash
-xattr -cr /Applications/Storm\ Uploader.app
+xattr -cr /Applications/Storm\ Almanac.app
 ```
 
 **Windows:** If SmartScreen warns about an unrecognized app, click "More info" then "Run anyway".

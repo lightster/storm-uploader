@@ -1,6 +1,7 @@
 use flate2::write::GzEncoder;
 use flate2::Compression;
 use serde::Serialize;
+use std::collections::HashSet;
 use std::fs::{File, OpenOptions};
 use std::io::{BufWriter, Write};
 use std::path::{Path, PathBuf};
@@ -118,15 +119,31 @@ impl InputRecorder {
     ) {
         let mut event_count = 0u64;
         let flush_interval = 100; // flush every 100 events
+        let mut keys_held: HashSet<String> = HashSet::new();
 
         while recording.load(Ordering::Relaxed) {
             match rx.recv_timeout(std::time::Duration::from_secs(5)) {
                 Ok(event) => {
                     if let Some(type_str) = event_type_str(&event.event_type) {
+                        let key = key_name(&event.event_type);
+
+                        // Deduplicate key repeats: skip kd if key is already held
+                        match type_str {
+                            "kd" | "bd" => {
+                                if !keys_held.insert(key.clone()) {
+                                    continue; // already held, skip repeat
+                                }
+                            }
+                            "ku" | "bu" => {
+                                keys_held.remove(&key);
+                            }
+                            _ => {}
+                        }
+
                         let input_event = InputEvent {
                             t: system_time_millis(event.time),
                             event_type: type_str,
-                            key: key_name(&event.event_type),
+                            key,
                             raw: raw_code(&event.event_type),
                             name: event.name,
                         };

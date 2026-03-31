@@ -6,10 +6,15 @@ use std::path::Path;
 use std::sync::Mutex;
 use tauri::Manager;
 
+// Number of consecutive "not running" polls before we finalize and upload the session.
+// At 5s per poll, 6 consecutive = 30 seconds of the game not running.
+const NOT_RUNNING_THRESHOLD: u32 = 6;
+
 pub fn start_game_session_polling(app: tauri::AppHandle) {
     let app_clone = app.clone();
     tauri::async_runtime::spawn(async move {
         let mut was_running = false;
+        let mut not_running_count: u32 = 0;
         let mut interval = tokio::time::interval(std::time::Duration::from_secs(5));
 
         loop {
@@ -17,10 +22,10 @@ pub fn start_game_session_polling(app: tauri::AppHandle) {
 
             let config = load_config(&app_clone);
             if !config.input_recording_enabled {
-                // If recording was active but got disabled, stop it
                 if was_running {
                     stop_and_upload(&app_clone).await;
                     was_running = false;
+                    not_running_count = 0;
                 }
                 continue;
             }
@@ -29,14 +34,41 @@ pub fn start_game_session_polling(app: tauri::AppHandle) {
                 .await
                 .unwrap_or(false);
 
-            if is_running && !was_running {
-                // Game just started
-                start_recording(&app_clone);
-                was_running = true;
-            } else if !is_running && was_running {
-                // Game just exited
-                stop_and_upload(&app_clone).await;
-                was_running = false;
+            if is_running {
+                not_running_count = 0;
+                if !was_running {
+                    // Check if we have an existing session (brief blip recovery)
+                    let has_session = {
+                        let recording_state = app_clone.state::<SharedRecordingState>();
+                        let state = recording_state.lock().unwrap();
+                        state.session_path.is_some()
+                    };
+                    if has_session {
+                        // Resume existing session — just restart the recorder
+                        resume_recording(&app_clone);
+                    } else {
+                        start_recording(&app_clone);
+                    }
+                    was_running = true;
+                }
+            } else if was_running {
+                not_running_count += 1;
+                if not_running_count >= NOT_RUNNING_THRESHOLD {
+                    // Game has been gone long enough — finalize session
+                    stop_and_upload(&app_clone).await;
+                    was_running = false;
+                    not_running_count = 0;
+                } else if not_running_count == 1 {
+                    // Stop the recorder but keep session metadata so we can resume
+                    log::info!("Game process not detected, pausing recorder (poll {}/{})",
+                        not_running_count, NOT_RUNNING_THRESHOLD);
+                    let recorder_holder = app_clone.state::<RecorderHolder>();
+                    let mut holder = recorder_holder.lock().unwrap();
+                    if let Some(ref mut recorder) = *holder {
+                        recorder.stop();
+                    }
+                    *holder = None;
+                }
             }
         }
     });
@@ -77,6 +109,49 @@ fn start_recording(app: &tauri::AppHandle) {
         }
         Err(e) => {
             log::error!("Failed to start input recording: {}", e);
+        }
+    }
+}
+
+fn resume_recording(app: &tauri::AppHandle) {
+    if !input_recorder::check_accessibility_permission() {
+        return;
+    }
+
+    let session_path = {
+        let recording_state = app.state::<SharedRecordingState>();
+        let state = recording_state.lock().unwrap();
+        state.session_path.clone()
+    };
+
+    let Some(session_path) = session_path else {
+        return;
+    };
+
+    // Check if there's already an active recorder
+    {
+        let recorder_holder = app.state::<RecorderHolder>();
+        let holder = recorder_holder.lock().unwrap();
+        if holder.is_some() {
+            return; // Already recording
+        }
+    }
+
+    // Create a new recorder appending to the existing session file
+    match InputRecorder::new(&session_path) {
+        Ok(recorder) => {
+            log::info!("Resumed recording to {:?}", session_path);
+
+            let recording_state = app.state::<SharedRecordingState>();
+            let mut state = recording_state.lock().unwrap();
+            state.status = RecordingStatus::Recording;
+
+            let recorder_holder = app.state::<RecorderHolder>();
+            let mut holder = recorder_holder.lock().unwrap();
+            *holder = Some(recorder);
+        }
+        Err(e) => {
+            log::error!("Failed to resume input recording: {}", e);
         }
     }
 }
@@ -275,6 +350,14 @@ pub async fn retry_pending_uploads(app: &tauri::AppHandle) {
         let session_uuid = extract_session_uuid(jsonl_path);
         if session_uuid.is_empty() {
             continue;
+        }
+
+        if let Ok(meta) = std::fs::metadata(jsonl_path) {
+            if meta.len() == 0 {
+                log::info!("Retry: removing empty session file {:?}", jsonl_path);
+                let _ = std::fs::remove_file(jsonl_path);
+                continue;
+            }
         }
 
         if let Some((started_at, ended_at)) = read_session_timestamps(jsonl_path) {
